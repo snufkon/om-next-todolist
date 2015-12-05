@@ -58,6 +58,19 @@
      (fn []
        (swap! state update-in [:todos index :completed] not))}))
 
+(defn- remove-todo
+  [todos id]
+  (-> (remove #(= id (:id %)) todos) vec))
+
+(defmethod mutate 'todos/delete
+  [env key params]
+  (let [state (:state env)
+        id (:id params)
+        todos (remove-todo (:todos @state) id)]
+    {:action
+     (fn []
+       (swap! state assoc :todos todos))}))
+
 
 ;; -----------------------------------------------------------------------------
 ;; Components
@@ -75,7 +88,10 @@
                         :className "toggle"
                         :checked (and completed "checked")
                         :onChange #(om/transact! this `[(todo/toggle {:id ~id})])})
-        (dom/span #js {:className class} title)))))
+        (dom/span #js {:className class} title)
+        (dom/span #js {:className "delete"
+                       :onClick #(om/transact! this `[(todos/delete {:id ~id}) :todos])}
+                  "[x]")))))
 
 (def todo-item (om/factory TodoItem))
 
