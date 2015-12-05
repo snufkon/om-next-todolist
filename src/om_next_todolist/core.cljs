@@ -8,11 +8,11 @@
 (def ENTER_KEY 13)
 
 (def app-state
-  (atom {:todos [{:id 1 :title "豚肉を買ってくる"}
-                 {:id 2 :title "たまねぎを買ってくる"}
-                 {:id 3 :title "にんじんを買ってくる"}
-                 {:id 4 :title "じゃがいもを買ってくる"}
-                 {:id 5 :title "カレーを作る"}]}))
+  (atom {:todos [{:id 1 :title "豚肉を買ってくる"       :completed true}
+                 {:id 2 :title "たまねぎを買ってくる"   :completed true}
+                 {:id 3 :title "にんじんを買ってくる"   :completed false}
+                 {:id 4 :title "じゃがいもを買ってくる" :completed false}
+                 {:id 5 :title "カレーを作る"           :completed false}]}))
 
 
 ;; -----------------------------------------------------------------------------
@@ -42,6 +42,22 @@
      (fn []
        (swap! state update :todos conj new-todo))}))
 
+(defn- id->index
+  [id todos]
+  (-> (for [[index todo] (map-indexed vector todos)
+            :when (= id (:id todo))]
+        index)
+      first))
+
+(defmethod mutate 'todo/toggle
+  [env key params]
+  (let [state (:state env)
+        id (:id params)
+        index (id->index id (:todos @state))]
+    {:action
+     (fn []
+       (swap! state update-in [:todos index :completed] not))}))
+
 
 ;; -----------------------------------------------------------------------------
 ;; Components
@@ -49,12 +65,17 @@
 (defui TodoItem
   static om/IQuery
   (query [this]
-    [:id :title])
+    [:id :title :completed])
   Object
   (render [this]
-    (let [props (om/props this)
-          title (:title props)]
-      (dom/li nil title))))
+    (let [{:keys [id title completed]} (om/props this)
+          class (if completed "completed" "")]
+      (dom/li nil
+        (dom/input #js {:type "checkbox"
+                        :className "toggle"
+                        :checked (and completed "checked")
+                        :onChange #(om/transact! this `[(todo/toggle {:id ~id})])})
+        (dom/span #js {:className class} title)))))
 
 (def todo-item (om/factory TodoItem))
 
